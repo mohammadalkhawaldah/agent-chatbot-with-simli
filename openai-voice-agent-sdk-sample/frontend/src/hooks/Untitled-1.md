@@ -1,0 +1,1 @@
+C:/Users/moham/OneDrive/Desktop/VS project October 2025/voice-agent-chatbot/.venv/Scripts/python.exe

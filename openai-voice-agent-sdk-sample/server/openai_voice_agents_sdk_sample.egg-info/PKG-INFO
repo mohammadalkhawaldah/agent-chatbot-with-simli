@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: openai-voice-agents-sdk-sample
+Version: 0.1.0
+Summary: Example python backend server for the Agents SDK
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi[standard]>=0.115.11
+Requires-Dist: numpy>=2.2.3
+Requires-Dist: openai>=1.68.2
+Requires-Dist: openai-agents[voice]>=0.0.6
+Requires-Dist: python-dotenv>=1.0.1
+Requires-Dist: uvicorn>=0.34.0
