@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from logging import getLogger
 from typing import Any, Dict
 
+# Import core agent and voice pipeline logic
 from agents import Runner, trace
 from agents.voice import (
     TTSModelSettings,
@@ -10,6 +11,7 @@ from agents.voice import (
     VoicePipelineConfig,
     VoiceWorkflowBase,
 )
+# Import configuration and utility functions
 from app.agent_config import starting_agent
 from app.utils import (
     WebsocketHelper,
@@ -22,20 +24,22 @@ from app.utils import (
     is_text_output,
     process_inputs,
 )
+# FastAPI and middleware imports
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 
-
+# Load environment variables from .env file
 from dotenv import load_dotenv
-
 # When .env file is present, it will override the environment variables
 load_dotenv(dotenv_path="../.env", override=True)
 
+# Create FastAPI app instance
 app = FastAPI()
 
 logger = getLogger(__name__)
 
+# Enable CORS for all origins (for frontend-backend communication)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,15 +48,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# VoiceWorkflowBase subclass to handle user input and agent response
 class Workflow(VoiceWorkflowBase):
     def __init__(self, connection: WebsocketHelper):
         self.connection = connection
 
+    # Main method to process text input and stream agent responses
     async def run(self, input_text: str) -> AsyncIterator[str]:
+        # Get conversation history and latest agent
         conversation_history, latest_agent = await self.connection.show_user_input(
             input_text
         )
 
+        # Run the agent and stream output events
         output = Runner.run_streamed(
             latest_agent,
             conversation_history,
@@ -66,11 +74,12 @@ class Workflow(VoiceWorkflowBase):
 
         await self.connection.text_output_complete(output, is_done=True)
 
-
+# WebSocket endpoint for real-time chat and audio
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     with trace("Voice Agent Chat"):
         await websocket.accept()
+        # Create a new WebsocketHelper for each connection
         connection = WebsocketHelper(websocket, [], starting_agent)
         audio_buffer = []
 
@@ -82,7 +91,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 print("Client disconnected")
                 return
 
-            # Handle text based messages
+            # Handle text-based messages (sync, new text, etc.)
             if is_sync_message(message):
                 connection.history = message["inputs"]
                 if message.get("reset_agent", False):
@@ -92,14 +101,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 async for new_output_tokens in workflow.run(user_input):
                     await connection.stream_response(new_output_tokens, is_text=True)
 
-            # Handle a new audio chunk
+            # Handle incoming audio chunks
             elif is_new_audio_chunk(message):
                 audio_buffer.append(extract_audio_chunk(message))
 
-            # Send full audio to the agent
+            # When audio is complete, process and send response
             elif is_audio_complete(message):
                 start_time = time.perf_counter()
 
+                # Function to print time to first byte for debugging
                 def transform_data(data):
                     nonlocal start_time
                     if start_time:
@@ -123,8 +133,9 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 audio_buffer = []  # reset the audio buffer
 
-
+# Entry point for running the server locally
 if __name__ == "__main__":
     import uvicorn
 
+    # Start FastAPI app with Uvicorn (hot reload enabled)
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
