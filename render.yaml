@@ -3,11 +3,7 @@ services:
   - type: web
     name: voice-agent-app
     runtime: python
-    buildCommand: |
-      cd openai-voice-agent-sdk-sample/server && pip install -e . &&
-      curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash - &&
-      sudo apt-get install -y nodejs &&
-      cd ../frontend && npm install && npm run export
+    buildCommand: cd openai-voice-agent-sdk-sample/server && pip install -e . && curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash - && sudo apt-get install -y nodejs && cd ../frontend && npm install && npm run export
     startCommand: cd openai-voice-agent-sdk-sample && python combined_server.py
     plan: starter
     envVars:
