@@ -12,10 +12,23 @@ export function useWebsocket({
   onNewAudio?: (audio: Int16Array<ArrayBuffer>) => void;
   onAudioDone?: () => void;
 } = {}) {
-  url =
-    url ??
-    process.env.NEXT_PUBLIC_WEBSOCKET_ENDPOINT ??
-    "ws://localhost:8000/ws";
+  // Auto-detect WebSocket URL based on current environment
+  const getWebSocketUrl = () => {
+    if (typeof window === 'undefined') return "ws://localhost:8000/ws";
+    
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    
+    // If running on localhost, use the local backend
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
+      return "ws://localhost:8000/ws";
+    }
+    
+    // For production deployment, use the same host with WebSocket protocol
+    return `${protocol}//${host}/ws`;
+  };
+
+  url = url ?? process.env.NEXT_PUBLIC_WEBSOCKET_ENDPOINT ?? getWebSocketUrl();
   const [isReady, setIsReady] = useState(false);
   const [history, setHistory] = useState<Message[]>([]);
   const [agentName, setAgentName] = useState<string | null>(null);
