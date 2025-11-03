@@ -1,33 +1,21 @@
 services:
-  # Backend FastAPI Service
+  # Combined Frontend + Backend Service (Cost-Effective - Single Service!)
   - type: web
-    name: voice-agent-backend
+    name: voice-agent-app
     runtime: python
-    buildCommand: cd openai-voice-agent-sdk-sample/server && pip install -e .
-    startCommand: cd openai-voice-agent-sdk-sample/server && uvicorn server:app --host 0.0.0.0 --port $PORT
+    buildCommand: |
+      # Install backend dependencies
+      cd openai-voice-agent-sdk-sample/server && pip install -e . &&
+      # Install Node.js 18
+      curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash - &&
+      sudo apt-get install -y nodejs &&
+      # Build frontend static files
+      cd ../frontend && npm install && npm run export
+    startCommand: cd openai-voice-agent-sdk-sample && python combined_server.py
     plan: starter
-    env: python
     envVars:
       - key: OPENAI_API_KEY
         sync: false
       - key: PYTHON_VERSION
         value: 3.11.0
-    rootDir: .
-
-  # Frontend Next.js Service
-  - type: web
-    name: voice-agent-frontend
-    runtime: node
-    buildCommand: cd openai-voice-agent-sdk-sample/frontend && npm install && npm run build
-    startCommand: cd openai-voice-agent-sdk-sample/frontend && npm start
-    plan: starter
-    env: node
-    envVars:
-      - key: NODE_VERSION
-        value: 18
-      - key: NEXT_PUBLIC_BACKEND_URL
-        fromService:
-          type: web
-          name: voice-agent-backend
-          property: host
     rootDir: .
