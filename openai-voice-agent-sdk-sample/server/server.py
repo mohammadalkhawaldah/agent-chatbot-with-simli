@@ -13,6 +13,7 @@ from agents.voice import (
 )
 # Import configuration and utility functions
 from app.agent_config import starting_agent
+from app.arabic_tts_helper import get_arabic_tts_instructions
 from app.utils import (
     WebsocketHelper,
     concat_audio_chunks,
@@ -120,11 +121,23 @@ async def websocket_endpoint(websocket: WebSocket):
                     return data
 
                 audio_input = concat_audio_chunks(audio_buffer)
+                
+                # Create a custom model provider that uses gpt-4o-mini-tts
+                from agents.voice.models.openai_model_provider import OpenAIVoiceModelProvider
+                
+                class CustomVoiceModelProvider(OpenAIVoiceModelProvider):
+                    def get_tts_model(self, model_name: str | None):
+                        # Force use of gpt-4o-mini-tts model
+                        return super().get_tts_model("gpt-4o-mini-tts")
+                
                 output = await VoicePipeline(
                     workflow=workflow,
                     config=VoicePipelineConfig(
+                        model_provider=CustomVoiceModelProvider(),
                         tts_settings=TTSModelSettings(
-                            buffer_size=512, transform_data=transform_data
+                            instructions=get_arabic_tts_instructions(),
+                            buffer_size=512, 
+                            transform_data=transform_data
                         )
                     ),
                 ).run(audio_input)
