@@ -39,6 +39,10 @@ This guide will help you deploy the Voice Agent Chatbot to Render.
 
 2. **Environment Variables:**
    - `OPENAI_API_KEY`: Your OpenAI API key
+   - `SIMLI_API_KEY`: Simli REST API key used to relay WebRTC offers
+   - `SIMLI_AVATAR_ID`: Identifier of the Simli avatar to render
+   - `SIMLI_VOICE_ID` *(optional)*: Override the default Simli voice for the avatar
+   - `SIMLI_OFFER_ENDPOINT` *(optional)*: Custom Simli offer URL when not using the default `https://api.simli.com/v1`
    - `PYTHON_VERSION`: 3.11.0
 
 #### Frontend Service (Next.js)
@@ -55,6 +59,9 @@ This guide will help you deploy the Voice Agent Chatbot to Render.
 
 2. **Environment Variables:**
    - `NEXT_PUBLIC_WEBSOCKET_ENDPOINT`: `wss://[your-backend-url]/ws`
+   - `NEXT_PUBLIC_SIMLI_AVATAR_ID`: Same value as `SIMLI_AVATAR_ID`
+   - `NEXT_PUBLIC_SIMLI_VOICE_ID` *(optional)*: Matches the backend voice override when used
+   - `NEXT_PUBLIC_SIMLI_OFFER_URL` *(optional)*: Base HTTP URL for the backend Simli relay (defaults to backend host)
    - Replace `[your-backend-url]` with your backend service URL
 
 ## Important Notes

@@ -16,6 +16,18 @@ services:
     envVars:
       - key: OPENAI_API_KEY
         sync: false
+      - key: SIMLI_API_KEY
+        sync: false
+      - key: SIMLI_AVATAR_ID
+        sync: false
+      - key: SIMLI_VOICE_ID
+        sync: false
+      - key: NEXT_PUBLIC_SIMLI_AVATAR_ID
+        sync: false
+      - key: NEXT_PUBLIC_SIMLI_VOICE_ID
+        sync: false
+      - key: NEXT_PUBLIC_SIMLI_OFFER_URL
+        sync: false
       - key: PYTHON_VERSION
         value: 3.11.0
     rootDir: .

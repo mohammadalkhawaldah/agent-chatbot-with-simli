@@ -1,3 +1,4 @@
+import os
 import time
 from collections.abc import AsyncIterator
 from logging import getLogger
@@ -26,9 +27,11 @@ from app.utils import (
     process_inputs,
 )
 # FastAPI and middleware imports
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import httpx
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
+from pydantic import BaseModel
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -40,6 +43,25 @@ app = FastAPI()
 
 logger = getLogger(__name__)
 
+
+SIMLI_API_KEY = os.getenv("SIMLI_API_KEY")
+SIMLI_AVATAR_ID = os.getenv("SIMLI_AVATAR_ID")
+SIMLI_VOICE_ID = os.getenv("SIMLI_VOICE_ID")
+SIMLI_BASE_URL = os.getenv("SIMLI_BASE_URL", "https://api.simli.com/v1")
+SIMLI_OFFER_ENDPOINT = os.getenv("SIMLI_OFFER_ENDPOINT")
+
+
+class SimliOfferRequest(BaseModel):
+    sdp: str
+    avatar_id: str | None = None
+    voice_id: str | None = None
+    session_name: str | None = None
+
+
+class SimliAnswerResponse(BaseModel):
+    sdp: str
+    type: str = "answer"
+
 # Enable CORS for all origins (for frontend-backend communication)
 app.add_middleware(
     CORSMiddleware,
@@ -48,6 +70,61 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+async def _post_simli_offer(payload: SimliOfferRequest) -> SimliAnswerResponse:
+    if not SIMLI_API_KEY:
+        raise HTTPException(status_code=500, detail="Simli API key is not configured")
+
+    avatar_id = payload.avatar_id or SIMLI_AVATAR_ID
+    if not avatar_id:
+        raise HTTPException(status_code=500, detail="Simli avatar id is not configured")
+
+    request_body: Dict[str, Any] = {
+        "sdp": payload.sdp,
+        "avatar_id": avatar_id,
+    }
+    voice_id = payload.voice_id or SIMLI_VOICE_ID
+    if voice_id:
+        request_body["voice_id"] = voice_id
+    if payload.session_name:
+        request_body["session_name"] = payload.session_name
+
+    endpoint = SIMLI_OFFER_ENDPOINT or f"{SIMLI_BASE_URL}/avatars/{avatar_id}/webrtc"
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                endpoint,
+                headers={"Authorization": f"Bearer {SIMLI_API_KEY}"},
+                json=request_body,
+            )
+    except httpx.HTTPError as exc:  # pragma: no cover - network failure
+        logger.exception("Error calling Simli offer endpoint: %s", exc)
+        raise HTTPException(status_code=502, detail="Failed to reach Simli offer endpoint")
+
+    if response.status_code >= 400:
+        logger.error(
+            "Simli offer failed with status %s: %s", response.status_code, response.text
+        )
+        raise HTTPException(status_code=502, detail="Simli offer request failed")
+
+    data = response.json()
+    # The Simli API returns an answer SDP payload under different keys depending on the
+    # deployment. Prefer the explicit `sdp` field but fall back to `answer`.
+    answer_sdp = data.get("sdp") or data.get("answer")
+    if not isinstance(answer_sdp, str):
+        logger.error("Unexpected Simli answer payload: %s", data)
+        raise HTTPException(status_code=502, detail="Invalid response from Simli offer")
+
+    return SimliAnswerResponse(sdp=answer_sdp)
+
+
+@app.post("/simli/offer", response_model=SimliAnswerResponse)
+async def create_simli_answer(payload: SimliOfferRequest) -> SimliAnswerResponse:
+    """Relay a WebRTC offer to Simli and return the generated answer."""
+
+    return await _post_simli_offer(payload)
 
 # VoiceWorkflowBase subclass to handle user input and agent response
 class Workflow(VoiceWorkflowBase):
